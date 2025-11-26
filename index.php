@@ -16,12 +16,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
- *
+ * File Name : index.php
  */
 
 define('INDEX_AUTH', 1);
 
 require 'sysconfig.inc.php';
+
+// Force HTTPS if enabled
+if ($sysconf['https']['enable'] && empty($_SERVER['HTTPS']) && (empty($_SERVER['HTTP_X_FORWARDED_PROTO']) || $_SERVER['HTTP_X_FORWARDED_PROTO'] != 'https')) {
+    header('Location: https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
+    exit();
+}
 
 // set default vars
 $page_title = 'Nayanes: The SLiMS Search Proxy';
@@ -31,8 +37,18 @@ $main_content = '';
 ob_start();
 if (isset($_GET['p'])) {
   $path = trim(strip_tags($_GET['p']));
-  // some extra checking
-  $path = preg_replace('@^(http|https|ftp|sftp|file|smb):@i', '', $path);
+  // some extra checking - modified to allow https
+  $path = preg_replace('@^(ftp|sftp|file|smb):@i', '', $path);
+  // Allow http and https but with additional security checks
+  if (preg_match('@^(http|https)://@i', $path)) {
+      // Validate URL for security
+      $parsed_url = parse_url($path);
+      $allowed_domains = array($sysconf['domain']); // Add your allowed domains
+      if (!in_array($parsed_url['host'], $allowed_domains)) {
+          // If not from allowed domain, treat as local path
+          $path = preg_replace('@^(http|https)://@i', '', $path);
+      }
+  }
   $path = preg_replace('@\/@i','',$path);
   // check if the file exists
   if (file_exists(LIB_DIR.'contents/'.$path.'.inc.php')) {
