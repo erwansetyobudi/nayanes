@@ -2,7 +2,7 @@
 /**
  *
  * MODS XML to SENAYAN converter
- *
+ * 
  * Copyright (C) 2010 Hendro Wicaksono (hendrowicaksono@yahoo.com)
  * Copyright (C) 2011,2012 Arie Nugraha (dicarve@gmail.com)
  *
@@ -19,7 +19,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
- *
+ * File Name : modsxmlsenayan.inc.php
  */
 
 define('MODS_XML_PARSE_ERROR', 199);
@@ -35,6 +35,63 @@ function modsXMLsenayan($str_modsxml, $str_xml_type = 'string')
     $_records = array();
     libxml_use_internal_errors(true);
 
+    // For URI type, handle HTTPS/HTTP issues
+    if ($str_xml_type == 'uri') {
+        // Check if we're in HTTPS environment but trying to access HTTP
+        $is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') 
+                    || $_SERVER['SERVER_PORT'] == 443
+                    || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https');
+        
+        if ($is_https && strpos($str_modsxml, 'http://') === 0) {
+            // Try HTTPS version first
+            $https_url = str_replace('http://', 'https://', $str_modsxml);
+            
+            // Initialize cURL for better error handling
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $https_url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_SSL_VERIFYPEER => false, // Allow self-signed certificates
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; Nayanes-SLiMS)'
+            ]);
+            
+            $https_content = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            if ($https_content !== false && $http_code == 200) {
+                $str_modsxml = $https_content;
+                $str_xml_type = 'string';
+            } else {
+                // Fallback to HTTP with stream context
+                $context = stream_context_create([
+                    'ssl' => [
+                        'verify_peer' => false,
+                        'verify_peer_name' => false,
+                        'allow_self_signed' => true
+                    ],
+                    'http' => [
+                        'timeout' => 10,
+                        'user_agent' => 'Mozilla/5.0 (compatible; Nayanes-SLiMS)'
+                    ]
+                ]);
+                
+                try {
+                    $http_content = @file_get_contents($str_modsxml, false, $context);
+                    if ($http_content !== false) {
+                        $str_modsxml = $http_content;
+                        $str_xml_type = 'string';
+                    }
+                } catch (Exception $e) {
+                    return 'Connection error: ' . $e->getMessage();
+                }
+            }
+        }
+    }
+
     // load XML
     if ($str_xml_type == 'file') {
       // load from file
@@ -48,14 +105,40 @@ function modsXMLsenayan($str_modsxml, $str_xml_type = 'string')
       try {
           // check if type is URI
           if ($str_xml_type == 'uri') {
+              // Use stream context for SSL issues
+              $context = stream_context_create([
+                  'ssl' => [
+                      'verify_peer' => false,
+                      'verify_peer_name' => false,
+                  ],
+                  'http' => [
+                      'timeout' => 10,
+                      'user_agent' => 'Mozilla/5.0 (compatible; Nayanes-SLiMS)'
+                  ]
+              ]);
+              
+              libxml_set_streams_context($context);
               $xml = @new SimpleXMLElement($str_modsxml, LIBXML_NSCLEAN, true);
           } else {
               $xml = @new SimpleXMLElement($str_modsxml, LIBXML_NSCLEAN);
           }
       } catch (Exception $xmlerr) {
+          // Log error for debugging
+          error_log("MODS XML Parse Error: " . $xmlerr->getMessage());
           return MODS_XML_PARSE_ERROR;
-          // die($xmlerr->getMessage());
       }
+    }
+
+    // Check if XML loading failed
+    if ($xml === false) {
+        $errors = libxml_get_errors();
+        $error_messages = [];
+        foreach ($errors as $error) {
+            $error_messages[] = $error->message;
+        }
+        libxml_clear_errors();
+        error_log("XML Load Errors: " . implode(", ", $error_messages));
+        return MODS_XML_PARSE_ERROR;
     }
 
     // get result information from SLiMS Namespaced node
