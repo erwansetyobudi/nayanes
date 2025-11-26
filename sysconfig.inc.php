@@ -2,7 +2,7 @@
 /**
  *
  * Copyright (C) 2012  Arie Nugraha (dicarve@yahoo.com)
- *
+ * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
- *
+ * File Name : sysconfig.inc.php
  */
 
 // be sure that this file not accessed directly
@@ -66,20 +66,32 @@ define('NAYANES_BASE_DIR', realpath(dirname(__FILE__)).DIRECTORY_SEPARATOR);
 // nayanes library base dir
 define('LIB_DIR', NAYANES_BASE_DIR.'lib'.DIRECTORY_SEPARATOR);
 
+// HTTPS Configuration
+$sysconf['https']['enable'] = true;
+$sysconf['base_url'] = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . '/';
+$sysconf['domain'] = $_SERVER['HTTP_HOST'];
+
 // Apply language settings
 require LIB_DIR.'lang/localisation.php';
 
-// SEARCH NODE
+// SEARCH NODE - MODIFIED FOR HTTPS SUPPORT
 // Array index/Node Index number MUST BE IN SEQUENTIAL ORDER start from 1
-$sysconf['node'][1] = array('url' => 'http://perpustakaan.kemdikbud.go.id/libsenayan', 'desc' => 'Perpustakaan Kementerian Pendidikan dan Kebudayaan');
-$sysconf['node'][2] = array('url' => 'http://istinfonet.katalog-induk.net', 'desc' => 'Pusat Perpustakaan Islam Indonesia');
-$sysconf['node'][3] = array('url' => 'http://perpustakaan.bapeten.go.id', 'desc' => 'Perpustakaan BAPETEN');
-$sysconf['node'][4] = array('url' => 'http://perpustakaan.kpk.go.id/', 'desc' => 'Perpustakaan Komisi Pemberantasan Korupsi (KPK)');
+$sysconf['node'][1] = array('url' => 'https://perpustakaan.kemdikbud.go.id/libsenayan', 'desc' => 'Perpustakaan Kementerian Pendidikan dan Kebudayaan');
+$sysconf['node'][2] = array('url' => 'https://istinfonet.katalog-induk.net', 'desc' => 'Pusat Perpustakaan Islam Indonesia');
+$sysconf['node'][3] = array('url' => 'https://perpustakaan.bapeten.go.id', 'desc' => 'Perpustakaan BAPETEN');
+$sysconf['node'][4] = array('url' => 'https://perpustakaan.kpk.go.id/', 'desc' => 'Perpustakaan Komisi Pemberantasan Korupsi (KPK)');
 // UCS
-$sysconf['node'][5] = array('url' => 'http://ucs.jogjalib.net', 'desc' => 'Union Catalog Yogyakarta Jogjalib.net');
-$sysconf['node'][6] = array('url' => 'http://primurlib.net', 'desc' => 'Union Catalog Priyangan Timur Primurlib.net');
-$sysconf['node'][7] = array('url' => 'http://makassarlib.net', 'desc' => 'Union Catalog Makassar Makassarlib.net');
-$sysconf['node'][8] = array('url' => 'http://jatenglib.net', 'desc' => 'Union Catalog Jawa Tengah');
+$sysconf['node'][5] = array('url' => 'https://ucs.jogjalib.net', 'desc' => 'Union Catalog Yogyakarta Jogjalib.net');
+$sysconf['node'][6] = array('url' => 'https://primurlib.net', 'desc' => 'Union Catalog Priyangan Timur Primurlib.net');
+$sysconf['node'][7] = array('url' => 'https://makassarlib.net', 'desc' => 'Union Catalog Makassar Makassarlib.net');
+$sysconf['node'][8] = array('url' => 'https://jatenglib.net', 'desc' => 'Union Catalog Jawa Tengah');
+
+// Fallback nodes if HTTPS fails - keep HTTP as backup
+$sysconf['node_fallback'] = array(
+    1 => array('url' => 'http://perpustakaan.kemdikbud.go.id/libsenayan', 'desc' => 'Perpustakaan Kementerian Pendidikan dan Kebudayaan (HTTP Fallback)'),
+    2 => array('url' => 'http://istinfonet.katalog-induk.net', 'desc' => 'Pusat Perpustakaan Islam Indonesia (HTTP Fallback)'),
+    // Add other fallback nodes as needed
+);
 
 $sysconf['request_timeout'] = 5000; // in miliseconds
 
